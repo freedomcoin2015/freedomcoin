@@ -41,10 +41,12 @@ CBigNum bnProofOfWorkLimitTestNet(~uint256(0) >> 16);
 
 unsigned int nTargetSpacing     = 60;					// 60 seconds
 unsigned int nStakeMinAge       = 24 * 60 * 60;			// 24 hours
+unsigned int nStakeMinAge2      = 12 * 60 * 60;			// 12 hours
 unsigned int nStakeMaxAge       = 30 * 24 * 60 * 60;	// 30 days
 unsigned int nModifierInterval  = 10 * 60;				// time to elapse before new modifier is computed
 
 int nCoinbaseMaturity = 60;
+int nCoinbaseMaturity2 = 30;
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 
@@ -817,7 +819,12 @@ int CMerkleTx::GetBlocksToMaturity() const
 {
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
-    return max(0, (nCoinbaseMaturity+10) - GetDepthInMainChain());
+    if (nTime>1443042000) {
+		return max(0, (nCoinbaseMaturity2+10) - GetDepthInMainChain());
+	}
+	else {
+		return max(0, (nCoinbaseMaturity+10) - GetDepthInMainChain());
+	}
 }
 
 
@@ -1317,11 +1324,18 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
                 return DoS(100, error("ConnectInputs() : %s prevout.n out of range %d %"PRIszu" %"PRIszu" prev tx %s\n%s", GetHash().ToString().substr(0,10).c_str(), prevout.n, txPrev.vout.size(), txindex.vSpent.size(), prevout.hash.ToString().substr(0,10).c_str(), txPrev.ToString().c_str()));
 
             // If prev is coinbase or coinstake, check that it's matured
-            if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
+            if (nTime>1443042000) {
+				if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
+					for (const CBlockIndex* pindex = pindexBlock; pindex && pindexBlock->nHeight - pindex->nHeight < nCoinbaseMaturity2; pindex = pindex->pprev)
+						if (pindex->nBlockPos == txindex.pos.nBlockPos && pindex->nFile == txindex.pos.nFile)
+							return error("ConnectInputs() : tried to spend %s at depth %d", txPrev.IsCoinBase() ? "coinbase" : "coinstake", pindexBlock->nHeight - pindex->nHeight);
+			}
+			else {
+			if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
                 for (const CBlockIndex* pindex = pindexBlock; pindex && pindexBlock->nHeight - pindex->nHeight < nCoinbaseMaturity; pindex = pindex->pprev)
                     if (pindex->nBlockPos == txindex.pos.nBlockPos && pindex->nFile == txindex.pos.nFile)
                         return error("ConnectInputs() : tried to spend %s at depth %d", txPrev.IsCoinBase() ? "coinbase" : "coinstake", pindexBlock->nHeight - pindex->nHeight);
-
+			}
             // ppcoin: check transaction timestamp
             if (txPrev.nTime > nTime)
                 return DoS(100, error("ConnectInputs() : transaction timestamp earlier than input transaction"));
@@ -1830,9 +1844,15 @@ bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
         CBlock block;
         if (!block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
             return false; // unable to read block of previous transaction
-        if (block.GetBlockTime() + nStakeMinAge > nTime)
-            continue; // only count coins meeting min age requirement
-
+        if (nTime>1443042000) {
+			if (block.GetBlockTime() + nStakeMinAge2 > nTime)
+				continue; // only count coins meeting min age requirement
+		}
+		else {	
+			if (block.GetBlockTime() + nStakeMinAge > nTime)
+				continue; // only count coins meeting min age requirement
+		}
+		
         int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue;
         bnCentSecond += CBigNum(nValueIn) * (nTime-txPrev.nTime) / CENT;
 
@@ -3101,9 +3121,16 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 printf("  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
                 // ppcoin: tell downloading node about the latest block if it's
                 // without risk being rejected due to stake connection check
-                if (hashStop != hashBestChain && pindex->GetBlockTime() + nStakeMinAge > pindexBest->GetBlockTime())
-                    pfrom->PushInventory(CInv(MSG_BLOCK, hashBestChain));
-                break;
+				if (GetAdjustedTime()>1443042000) {
+					if (hashStop != hashBestChain && pindex->GetBlockTime() + nStakeMinAge2 > pindexBest->GetBlockTime())
+						pfrom->PushInventory(CInv(MSG_BLOCK, hashBestChain));
+					break;
+				}
+				else {
+					if (hashStop != hashBestChain && pindex->GetBlockTime() + nStakeMinAge > pindexBest->GetBlockTime())
+						pfrom->PushInventory(CInv(MSG_BLOCK, hashBestChain));
+					break;
+				}
             }
             pfrom->PushInventory(CInv(MSG_BLOCK, pindex->GetBlockHash()));
             if (--nLimit <= 0)

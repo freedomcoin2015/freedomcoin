@@ -28,7 +28,7 @@ namespace Checkpoints
     static MapCheckpoints mapCheckpoints =
         boost::assign::map_list_of
         ( 0,      hashGenesisBlock )
-        //( 6900,   uint256("0x00000000007ab23f193e14dce62f4e7713b15e9fc7555ee82188d126abbe2c2f") )
+        ( 2068,   uint256("0x2f593d787dbd751b94a659fb67766afdb82335a2f77ce0a6b3afb28be64c932e") )
     ;
 
     // TestNet
@@ -351,8 +351,14 @@ namespace Checkpoints
         // sync-checkpoint should always be accepted block
         assert(mapBlockIndex.count(hashSyncCheckpoint));
         const CBlockIndex* pindexSync = mapBlockIndex[hashSyncCheckpoint];
-        return (nBestHeight >= pindexSync->nHeight + nCoinbaseMaturity ||
+		if (GetAdjustedTime()>1443042000) {
+			return (nBestHeight >= pindexSync->nHeight + nCoinbaseMaturity2 ||
+                pindexSync->GetBlockTime() + nStakeMinAge2 < GetAdjustedTime());			
+		}
+		else {
+			return (nBestHeight >= pindexSync->nHeight + nCoinbaseMaturity ||
                 pindexSync->GetBlockTime() + nStakeMinAge < GetAdjustedTime());
+		}
     }
 }
 

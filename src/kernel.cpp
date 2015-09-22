@@ -30,8 +30,12 @@ int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd)
     // Kernel hash weight starts from 0 at the min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
-
-    return min(nIntervalEnd - nIntervalBeginning - nStakeMinAge, (int64_t)nStakeMaxAge);
+	if (GetAdjustedTime()>1443042000) {
+		return min(nIntervalEnd - nIntervalBeginning - nStakeMinAge2, (int64_t)nStakeMaxAge);
+	}
+	else {
+		return min(nIntervalEnd - nIntervalBeginning - nStakeMinAge, (int64_t)nStakeMaxAge);
+	}
 }
 
 // Get the last stake modifier and its generation time from a given block
@@ -227,11 +231,20 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, uint64_t& nStakeModifi
     {
         if (!pindex->pnext)
         {   // reached best block; may happen if node is behind on block chain
-            if (fPrintProofOfStake || (pindex->GetBlockTime() + nStakeMinAge - nStakeModifierSelectionInterval > GetAdjustedTime()))
-                return error("GetKernelStakeModifier() : reached best block %s at height %d from block %s",
-                    pindex->GetBlockHash().ToString().c_str(), pindex->nHeight, hashBlockFrom.ToString().c_str());
-            else
-                return false;
+            if (GetAdjustedTime()>1443042000) {
+				if (fPrintProofOfStake || (pindex->GetBlockTime() + nStakeMinAge2 - nStakeModifierSelectionInterval > GetAdjustedTime()))
+					return error("GetKernelStakeModifier() : reached best block %s at height %d from block %s",
+						pindex->GetBlockHash().ToString().c_str(), pindex->nHeight, hashBlockFrom.ToString().c_str());
+				else
+					return false;
+			}
+			else {	
+				if (fPrintProofOfStake || (pindex->GetBlockTime() + nStakeMinAge - nStakeModifierSelectionInterval > GetAdjustedTime()))
+					return error("GetKernelStakeModifier() : reached best block %s at height %d from block %s",
+						pindex->GetBlockHash().ToString().c_str(), pindex->nHeight, hashBlockFrom.ToString().c_str());
+				else
+					return false;
+			}
         }
         pindex = pindex->pnext;
         if (pindex->GeneratedStakeModifier())
@@ -271,9 +284,15 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
         return error("CheckStakeKernelHash() : nTime violation");
 
     unsigned int nTimeBlockFrom = blockFrom.GetBlockTime();
-    if (nTimeBlockFrom + nStakeMinAge > nTimeTx) // Min age requirement
-        return error("CheckStakeKernelHash() : min age violation");
-
+    if (GetAdjustedTime()>1443042000) {
+		if (nTimeBlockFrom + nStakeMinAge2 > nTimeTx) // Min age requirement
+			return error("CheckStakeKernelHash() : min age violation");
+	}
+	else {	
+		if (nTimeBlockFrom + nStakeMinAge > nTimeTx) // Min age requirement
+			return error("CheckStakeKernelHash() : min age violation");
+	}
+	
     CBigNum bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
     int64_t nValueIn = txPrev.vout[prevout.n].nValue;
