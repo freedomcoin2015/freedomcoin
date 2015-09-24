@@ -96,7 +96,7 @@ Copyright © 2012-2014 The NovaCoin developers
 Copyright © 2014 The BlackCoin developers
 Copyright © 2014 The ShadowCash developers
 Copyright © 2014-2015 The OKCash developers
-Copyright © 2015 The PSI developers</string>
+Copyright © 2015 The FreedomCoin developers</string>
        </property>
        <property name="textInteractionFlags">
         <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
